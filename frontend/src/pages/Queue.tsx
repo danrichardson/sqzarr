@@ -5,7 +5,7 @@ import { Card } from '../components/Card'
 import { StatusBadge } from '../components/StatusBadge'
 import { ProgressBar } from '../components/ProgressBar'
 import { formatBytes, formatDuration, basename } from '../lib/utils'
-import { X, RotateCcw } from 'lucide-react'
+import { X } from 'lucide-react'
 
 export function Queue() {
   const [running, setRunning] = useState<Job[]>([])

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, type Status } from '../lib/api'
-import { Card, CardTitle } from '../components/Card'
-import { Cpu, Shield, Server, CheckCircle } from 'lucide-react'
+import { Card } from '../components/Card'
+import { Cpu, Shield, Server } from 'lucide-react'
 
 export function Settings() {
   const [status, setStatus] = useState<Status | null>(null)

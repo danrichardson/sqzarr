@@ -1,14 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
-import { api, type Directory } from '../lib/api'
-import { formatBytes, formatBitrate } from '../lib/utils'
+import { api, type Directory, type DirectoryInput } from '../lib/api'
+import { formatBitrate } from '../lib/utils'
 import { Plus, Pencil, Trash2, X, Check } from 'lucide-react'
 
-interface DirForm {
+interface DirForm extends Required<DirectoryInput> {
   path: string
-  enabled: boolean
-  min_age_days: number
-  max_bitrate: number
-  min_size_mb: number
 }
 
 const defaultForm: DirForm = {

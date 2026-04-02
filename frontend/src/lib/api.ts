@@ -72,6 +72,15 @@ export interface Directory {
   UpdatedAt: string
 }
 
+// Input type for create/update — matches Go JSON struct tags (snake_case)
+export interface DirectoryInput {
+  path?: string
+  enabled?: boolean
+  min_age_days?: number
+  max_bitrate?: number
+  min_size_mb?: number
+}
+
 export interface Stats {
   TotalBytesSaved: number
   TotalJobsDone: number
@@ -97,8 +106,8 @@ export const api = {
   retryJob: (id: number) => request<void>('POST', `/jobs/${id}/retry`),
 
   listDirectories: () => request<Directory[]>('GET', '/directories'),
-  createDirectory: (d: Partial<Directory>) => request<Directory>('POST', '/directories', d),
-  updateDirectory: (id: number, d: Partial<Directory>) =>
+  createDirectory: (d: DirectoryInput) => request<Directory>('POST', '/directories', d),
+  updateDirectory: (id: number, d: DirectoryInput) =>
     request<Directory>('PUT', `/directories/${id}`, d),
   deleteDirectory: (id: number) => request<void>('DELETE', `/directories/${id}`),
 
