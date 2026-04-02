@@ -15,6 +15,7 @@ import (
 	"github.com/danrichardson/sqzarr/internal/config"
 	"github.com/danrichardson/sqzarr/internal/db"
 	"github.com/danrichardson/sqzarr/internal/logger"
+	"github.com/danrichardson/sqzarr/internal/plex"
 	"github.com/danrichardson/sqzarr/internal/queue"
 	"github.com/danrichardson/sqzarr/internal/scanner"
 	"github.com/danrichardson/sqzarr/internal/transcoder"
@@ -93,7 +94,13 @@ func runServe(cfgPath string) {
 	log.Info("encoder selected", "encoder", enc.DisplayName)
 
 	t := transcoder.New(enc, cfg.Transcoder.TempDir, log)
-	worker := queue.New(database, cfg, t, log)
+
+	var plexNotifier queue.PlexNotifier
+	if cfg.Plex.Enabled {
+		plexNotifier = plex.New(cfg.Plex.BaseURL, cfg.Plex.Token, log)
+	}
+
+	worker := queue.New(database, cfg, t, plexNotifier, log)
 	scan := scanner.New(database, log)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

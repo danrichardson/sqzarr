@@ -1,0 +1,22 @@
+[Unit]
+Description=SQZARR Media Transcoder
+After=network.target
+
+[Service]
+Type=simple
+User=sqzarr
+Group=sqzarr
+ExecStart=/usr/local/bin/sqzarr serve -config /etc/sqzarr/sqzarr.toml
+Restart=on-failure
+RestartSec=10
+Environment=LIBVA_DRIVER_NAME=iHD
+
+# Allow access to /dev/dri for VAAPI
+SupplementaryGroups=video render
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sqzarr
+
+[Install]
+WantedBy=multi-user.target

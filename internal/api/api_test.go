@@ -32,7 +32,7 @@ func newTestServer(t *testing.T) (*api.Server, *db.DB) {
 		BuildArgs:   func(in, out string) []string { return nil },
 	}
 	log := slog.Default()
-	worker := queue.New(database, cfg, transcoder.New(enc, "", log), log)
+	worker := queue.New(database, cfg, transcoder.New(enc, "", log), nil, log)
 	scan := scanner.New(database, log)
 	return api.New(cfg, database, worker, scan, enc, log), database
 }
@@ -134,7 +134,7 @@ func TestAuthRequired(t *testing.T) {
 	log := slog.Default()
 	enc := &transcoder.Encoder{Type: transcoder.EncoderSoftware, DisplayName: "test",
 		BuildArgs: func(in, out string) []string { return nil }}
-	worker := queue.New(database, cfg, transcoder.New(enc, "", log), log)
+	worker := queue.New(database, cfg, transcoder.New(enc, "", log), nil, log)
 	scan := scanner.New(database, log)
 	srv := api.New(cfg, database, worker, scan, enc, log)
 
@@ -158,7 +158,7 @@ func TestAuthLogin(t *testing.T) {
 	log := slog.Default()
 	enc := &transcoder.Encoder{Type: transcoder.EncoderSoftware, DisplayName: "test",
 		BuildArgs: func(in, out string) []string { return nil }}
-	worker := queue.New(database, cfg, transcoder.New(enc, "", log), log)
+	worker := queue.New(database, cfg, transcoder.New(enc, "", log), nil, log)
 	scan := scanner.New(database, log)
 	srv := api.New(cfg, database, worker, scan, enc, log)
 

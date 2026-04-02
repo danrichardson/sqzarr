@@ -39,11 +39,17 @@ type Event struct {
 // Observer receives queue events.
 type Observer func(Event)
 
+// PlexNotifier is the interface for triggering Plex library rescans.
+type PlexNotifier interface {
+	NotifyFileReplaced(path string)
+}
+
 // Worker processes transcode jobs from the database queue.
 type Worker struct {
 	db         *db.DB
 	cfg        *config.Config
 	transcoder *transcoder.Transcoder
+	plex       PlexNotifier
 	log        *slog.Logger
 
 	mu        sync.RWMutex
@@ -52,11 +58,12 @@ type Worker struct {
 }
 
 // New creates a Worker.
-func New(database *db.DB, cfg *config.Config, enc *transcoder.Transcoder, log *slog.Logger) *Worker {
+func New(database *db.DB, cfg *config.Config, enc *transcoder.Transcoder, plex PlexNotifier, log *slog.Logger) *Worker {
 	return &Worker{
 		db:         database,
 		cfg:        cfg,
 		transcoder: enc,
+		plex:       plex,
 		log:        log,
 	}
 }
@@ -196,6 +203,12 @@ func (w *Worker) processJob(ctx context.Context, job *db.Job) error {
 		"encoder", encoderName,
 	)
 	w.emit(Event{Type: EventDone, JobID: job.ID, Progress: 1.0})
+
+	// Notify Plex — non-fatal.
+	if w.plex != nil {
+		go w.plex.NotifyFileReplaced(job.SourcePath)
+	}
+
 	return nil
 }
 
