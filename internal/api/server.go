@@ -122,6 +122,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	// Directories
 	api.HandleFunc("GET /directories", s.handleListDirectories)
 	api.HandleFunc("POST /directories", s.handleCreateDirectory)
+	api.HandleFunc("POST /directories/batch", s.handleBatchCreateDirectories)
 	api.HandleFunc("GET /directories/{id}", s.handleGetDirectory)
 	api.HandleFunc("PUT /directories/{id}", s.handleUpdateDirectory)
 	api.HandleFunc("DELETE /directories/{id}", s.handleDeleteDirectory)

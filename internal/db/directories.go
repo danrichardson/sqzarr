@@ -56,6 +56,36 @@ func (db *DB) GetDirectory(id int64) (*Directory, error) {
 	return d, nil
 }
 
+// InsertDirectories inserts multiple directories in a single transaction.
+// Returns the IDs of all inserted directories, or rolls back on any failure.
+func (db *DB) InsertDirectories(dirs []*Directory) ([]int64, error) {
+	tx, err := db.conn.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	ids := make([]int64, 0, len(dirs))
+	for _, d := range dirs {
+		res, err := tx.Exec(`
+			INSERT INTO directories (path, enabled, min_age_days, max_bitrate, min_size_mb, bitrate_skip_margin)
+			VALUES (?, ?, ?, ?, ?, ?)`,
+			d.Path, d.Enabled, d.MinAgeDays, d.MaxBitrate, d.MinSizeMB, d.BitrateSkipMargin)
+		if err != nil {
+			return nil, fmt.Errorf("insert directory %q: %w", d.Path, err)
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			return nil, fmt.Errorf("last insert id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
+	}
+	return ids, nil
+}
+
 func (db *DB) InsertDirectory(d *Directory) (int64, error) {
 	res, err := db.conn.Exec(`
 		INSERT INTO directories (path, enabled, min_age_days, max_bitrate, min_size_mb, bitrate_skip_margin)

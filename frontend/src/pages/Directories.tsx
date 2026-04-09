@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { api, type Directory, type FSBrowseResult } from '../lib/api'
 import { formatBitrate, basename } from '../lib/utils'
-import { Plus, Pencil, Trash2, X, Check, FolderOpen, ChevronLeft } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, FolderOpen, ChevronLeft, Copy } from 'lucide-react'
 
 interface Settings {
   enabled: boolean
@@ -211,6 +211,7 @@ export function Directories() {
   const [browserForIndex, setBrowserForIndex] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [copiedFrom, setCopiedFrom] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try { setDirs(await api.listDirectories() ?? []) } catch {}
@@ -218,9 +219,21 @@ export function Directories() {
 
   useEffect(() => { load() }, [load])
 
-  const startAdd = () => {
+  const startAdd = (fromDir?: Directory) => {
     setAddPaths([''])
-    setAddSettings(defaultSettings)
+    if (fromDir) {
+      setAddSettings({
+        enabled: fromDir.Enabled,
+        min_age_days: fromDir.MinAgeDays,
+        max_bitrate: fromDir.MaxBitrate,
+        min_size_mb: fromDir.MinSizeMB,
+        bitrate_skip_margin: fromDir.BitrateSkipMargin,
+      })
+      setCopiedFrom(fromDir.Path)
+    } else {
+      setAddSettings(defaultSettings)
+      setCopiedFrom(null)
+    }
     setEditingId(null)
     setAdding(true)
     setError('')
@@ -236,17 +249,16 @@ export function Directories() {
     if (paths.length === 0) { setError('Add at least one path'); return }
     setSaving(true)
     setError('')
-    let failed = 0
-    for (const path of paths) {
-      try { await api.createDirectory({ path, ...addSettings }) }
-      catch { failed++ }
-    }
-    setSaving(false)
-    await load()
-    if (failed > 0) {
-      setError(`${failed} director${failed > 1 ? 'ies' : 'y'} failed to save`)
-    } else {
+    try {
+      await api.batchCreateDirectories({ paths, ...addSettings })
+      await load()
       setAdding(false)
+      setCopiedFrom(null)
+    } catch (e: any) {
+      setError(e.message ?? 'Save failed')
+      await load()
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -272,7 +284,7 @@ export function Directories() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-stone-900">Directories</h1>
         {!adding && (
-          <button onClick={startAdd}
+          <button onClick={() => startAdd()}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-stone-800 text-white hover:bg-stone-700 transition-colors">
             <Plus size={14} /> Add Directory
           </button>
@@ -283,6 +295,14 @@ export function Directories() {
       {adding && (
         <div className="bg-white border border-stone-200 rounded-lg p-5 space-y-4">
           <h2 className="text-sm font-medium text-stone-700">Add Directories</h2>
+          {copiedFrom && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
+              <Copy size={12} className="shrink-0" />
+              <span className="truncate">Settings copied from <span className="font-mono font-medium">{copiedFrom}</span></span>
+              <button onClick={() => { setCopiedFrom(null); setAddSettings(defaultSettings) }}
+                className="ml-auto shrink-0 text-amber-500 hover:text-amber-700"><X size={12} /></button>
+            </div>
+          )}
 
           <div className="space-y-2">
             <span className="text-xs font-medium text-stone-600">Paths</span>
@@ -324,7 +344,7 @@ export function Directories() {
               <Check size={14} />
               {saving ? 'Saving…' : filledPaths > 1 ? `Save ${filledPaths} Directories` : 'Save'}
             </button>
-            <button onClick={() => { setAdding(false); setError('') }}
+            <button onClick={() => { setAdding(false); setError(''); setCopiedFrom(null) }}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-stone-300 text-stone-700 hover:bg-stone-50 transition-colors">
               <X size={14} /> Cancel
             </button>
@@ -357,6 +377,11 @@ export function Directories() {
                   {!d.Enabled && (
                     <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded">Disabled</span>
                   )}
+                  <button onClick={() => startAdd(d)}
+                    className="text-stone-400 hover:text-amber-600 transition-colors"
+                    title="Copy settings to new directories">
+                    <Copy size={14} />
+                  </button>
                   <button onClick={() => { setEditingId(d.ID); setAdding(false); setError('') }}
                     className="text-stone-400 hover:text-stone-700 transition-colors">
                     <Pencil size={14} />

@@ -182,6 +182,14 @@ export const api = {
 
   listDirectories: () => request<Directory[]>('GET', '/directories'),
   createDirectory: (d: DirectoryInput) => request<Directory>('POST', '/directories', d),
+  batchCreateDirectories: (req: {
+    paths: string[]
+    enabled: boolean
+    min_age_days: number
+    max_bitrate: number
+    min_size_mb: number
+    bitrate_skip_margin: number
+  }) => request<Directory[]>('POST', '/directories/batch', req),
   updateDirectory: (id: number, d: DirectoryInput) =>
     request<Directory>('PUT', `/directories/${id}`, d),
   deleteDirectory: (id: number) => request<void>('DELETE', `/directories/${id}`),

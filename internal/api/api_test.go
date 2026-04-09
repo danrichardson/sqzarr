@@ -206,6 +206,80 @@ func abs64(n int64) int64 {
 	return n
 }
 
+func TestBatchCreateDirectories(t *testing.T) {
+	srv, database := newTestServer(t)
+
+	// Create two temp directories to use as paths.
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+
+	// Set root_dirs so path validation passes — use parent of temp dirs.
+	// TempDir paths are unique, so set roots broadly.
+	cfg := config.Defaults()
+	cfg.Scanner.RootDirs = []string{dir1, dir2}
+	cfg.Server.DataDir = t.TempDir()
+	cfg.Auth.JWTSecret = "test-secret"
+	log := slog.Default()
+	enc := &transcoder.Encoder{Type: transcoder.EncoderSoftware, DisplayName: "test",
+		BuildArgs: func(in, out string) []string { return nil }}
+	worker := queue.New(database, cfg, transcoder.New(enc, "", log), nil, log)
+	scan := scanner.New(database, cfg.Safety.ProcessedDirName, log)
+	srv = api.New(cfg, "", database, worker, scan, nil, enc, log)
+
+	t.Run("happy path", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{
+			"paths":       []string{dir1, dir2},
+			"enabled":     true,
+			"min_age_days": 14,
+			"max_bitrate":  3000000,
+			"min_size_mb":  200,
+		})
+		req := httptest.NewRequest("POST", "/api/v1/directories/batch", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+		}
+		var created []map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
+			t.Fatal(err)
+		}
+		if len(created) != 2 {
+			t.Errorf("expected 2 directories, got %d", len(created))
+		}
+	})
+
+	t.Run("empty paths rejected", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{"paths": []string{}})
+		req := httptest.NewRequest("POST", "/api/v1/directories/batch", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400 for empty paths, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("invalid path rolls back all", func(t *testing.T) {
+		dir3 := t.TempDir()
+		body, _ := json.Marshal(map[string]any{
+			"paths":       []string{dir3, "/nonexistent/path/abc123"},
+			"min_age_days": 5,
+		})
+		req := httptest.NewRequest("POST", "/api/v1/directories/batch", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected 400 for invalid path, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+}
+
 func TestAuthRequired(t *testing.T) {
 	database := testutil.NewTestDB(t)
 	cfg := config.Defaults()

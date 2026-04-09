@@ -434,6 +434,80 @@ func (s *Server) handleCreateDirectory(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, created)
 }
 
+// POST /directories/batch
+func (s *Server) handleBatchCreateDirectories(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Paths             []string `json:"paths"`
+		Enabled           *bool    `json:"enabled"`
+		MinAgeDays        int      `json:"min_age_days"`
+		MaxBitrate        int64    `json:"max_bitrate"`
+		MinSizeMB         int64    `json:"min_size_mb"`
+		BitrateSkipMargin *float64 `json:"bitrate_skip_margin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if len(req.Paths) == 0 {
+		jsonError(w, "paths is required and must not be empty", http.StatusBadRequest)
+		return
+	}
+
+	// Validate every path before inserting any.
+	for _, p := range req.Paths {
+		if msg, code := s.validateDirPath(p); msg != "" {
+			jsonError(w, p+": "+msg, code)
+			return
+		}
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+	if req.MinAgeDays == 0 {
+		req.MinAgeDays = 7
+	}
+	if req.MaxBitrate == 0 {
+		req.MaxBitrate = 2_222_000
+	}
+	if req.MinSizeMB == 0 {
+		req.MinSizeMB = 500
+	}
+	bitrateSkipMargin := 0.10
+	if req.BitrateSkipMargin != nil {
+		bitrateSkipMargin = *req.BitrateSkipMargin
+	}
+
+	dirs := make([]*db.Directory, len(req.Paths))
+	for i, p := range req.Paths {
+		dirs[i] = &db.Directory{
+			Path:              p,
+			Enabled:           enabled,
+			MinAgeDays:        req.MinAgeDays,
+			MaxBitrate:        req.MaxBitrate,
+			MinSizeMB:         req.MinSizeMB,
+			BitrateSkipMargin: bitrateSkipMargin,
+		}
+	}
+
+	ids, err := s.db.InsertDirectories(dirs)
+	if err != nil {
+		jsonError(w, "database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	created := make([]*db.Directory, 0, len(ids))
+	for _, id := range ids {
+		d, _ := s.db.GetDirectory(id)
+		if d != nil {
+			created = append(created, d)
+		}
+	}
+	w.WriteHeader(http.StatusCreated)
+	jsonOK(w, created)
+}
+
 // GET /directories/{id}
 func (s *Server) handleGetDirectory(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(r)
