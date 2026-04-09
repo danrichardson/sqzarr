@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=sqzarr
-Group=sqzarr
+User=root
+Group=root
 ExecStart=/usr/local/bin/sqzarr serve -config /etc/sqzarr/sqzarr.toml
 Restart=on-failure
 RestartSec=10
