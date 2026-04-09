@@ -8,6 +8,7 @@ interface Settings {
   min_age_days: number
   max_bitrate: number
   min_size_mb: number
+  bitrate_skip_margin: number
 }
 
 const defaultSettings: Settings = {
@@ -15,6 +16,7 @@ const defaultSettings: Settings = {
   min_age_days: 7,
   max_bitrate: 2_222_000,
   min_size_mb: 500,
+  bitrate_skip_margin: 0.10,
 }
 
 // ---- Directory browser modal ----
@@ -94,7 +96,7 @@ function DirectoryBrowser({ onSelect, onClose, startPath }: {
 function SettingsFields({ s, onChange }: { s: Settings; onChange: (s: Settings) => void }) {
   return (
     <>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <label className="block">
           <span className="text-xs font-medium text-stone-600">Min age (days)</span>
           <input type="number" min={0} value={s.min_age_days}
@@ -105,6 +107,13 @@ function SettingsFields({ s, onChange }: { s: Settings; onChange: (s: Settings) 
           <span className="text-xs font-medium text-stone-600">Max bitrate (bps)</span>
           <input type="number" min={0} value={s.max_bitrate}
             onChange={e => onChange({ ...s, max_bitrate: Number(e.target.value) })}
+            className="mt-1 block w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none" />
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-stone-600">Skip margin (%)</span>
+          <input type="number" min={0} max={100} step={1}
+            value={Math.round(s.bitrate_skip_margin * 100)}
+            onChange={e => onChange({ ...s, bitrate_skip_margin: Number(e.target.value) / 100 })}
             className="mt-1 block w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none" />
         </label>
         <label className="block">
@@ -136,6 +145,7 @@ function EditCard({ dir, onSave, onCancel }: {
     min_age_days: dir.MinAgeDays,
     max_bitrate: dir.MaxBitrate,
     min_size_mb: dir.MinSizeMB,
+    bitrate_skip_margin: dir.BitrateSkipMargin,
   })
   const [showBrowser, setShowBrowser] = useState(false)
   const [error, setError] = useState('')
@@ -340,7 +350,7 @@ export function Directories() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-stone-900 truncate">{d.Path}</p>
                   <p className="text-xs text-stone-400 mt-0.5">
-                    Age ≥ {d.MinAgeDays}d &middot; Bitrate &gt; {formatBitrate(d.MaxBitrate)} &middot; Size ≥ {d.MinSizeMB} MB
+                    Age ≥ {d.MinAgeDays}d &middot; Bitrate &gt; {formatBitrate(d.MaxBitrate)} +{Math.round(d.BitrateSkipMargin * 100)}% &middot; Size ≥ {d.MinSizeMB} MB
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

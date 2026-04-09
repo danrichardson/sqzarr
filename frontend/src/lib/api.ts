@@ -74,6 +74,7 @@ export interface Directory {
   MinAgeDays: number
   MaxBitrate: number
   MinSizeMB: number
+  BitrateSkipMargin: number
   CreatedAt: string
   UpdatedAt: string
 }
@@ -85,6 +86,7 @@ export interface DirectoryInput {
   min_age_days?: number
   max_bitrate?: number
   min_size_mb?: number
+  bitrate_skip_margin?: number
 }
 
 export interface Stats {

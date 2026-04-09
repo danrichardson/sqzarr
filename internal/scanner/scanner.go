@@ -165,9 +165,13 @@ func (s *Scanner) maybeEnqueue(ctx context.Context, path string, dir *db.Directo
 		return false, "", fmt.Errorf("probe: %w", err)
 	}
 
-	// Bitrate check.
-	if dir.MaxBitrate > 0 && probe.bitrate <= dir.MaxBitrate {
-		return false, fmt.Sprintf("bitrate %d within limit", probe.bitrate), nil
+	// Bitrate check — apply skip margin so files near the target are not
+	// sent through a full transcode only to be marked uncompressible.
+	if dir.MaxBitrate > 0 {
+		threshold := int64(float64(dir.MaxBitrate) * (1.0 + dir.BitrateSkipMargin))
+		if probe.bitrate <= threshold {
+			return false, fmt.Sprintf("bitrate %d within margin of limit %d (threshold %d)", probe.bitrate, dir.MaxBitrate, threshold), nil
+		}
 	}
 
 	job := &db.Job{

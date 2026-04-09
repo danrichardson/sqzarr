@@ -352,11 +352,12 @@ func (s *Server) validateDirPath(path string) (string, int) {
 // POST /directories
 func (s *Server) handleCreateDirectory(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Path       string `json:"path"`
-		Enabled    *bool  `json:"enabled"`
-		MinAgeDays int    `json:"min_age_days"`
-		MaxBitrate int64  `json:"max_bitrate"`
-		MinSizeMB  int64  `json:"min_size_mb"`
+		Path              string   `json:"path"`
+		Enabled           *bool    `json:"enabled"`
+		MinAgeDays        int      `json:"min_age_days"`
+		MaxBitrate        int64    `json:"max_bitrate"`
+		MinSizeMB         int64    `json:"min_size_mb"`
+		BitrateSkipMargin *float64 `json:"bitrate_skip_margin"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
@@ -380,13 +381,18 @@ func (s *Server) handleCreateDirectory(w http.ResponseWriter, r *http.Request) {
 	if req.MinSizeMB == 0 {
 		req.MinSizeMB = 500
 	}
+	bitrateSkipMargin := 0.10
+	if req.BitrateSkipMargin != nil {
+		bitrateSkipMargin = *req.BitrateSkipMargin
+	}
 
 	dir := &db.Directory{
-		Path:       req.Path,
-		Enabled:    enabled,
-		MinAgeDays: req.MinAgeDays,
-		MaxBitrate: req.MaxBitrate,
-		MinSizeMB:  req.MinSizeMB,
+		Path:              req.Path,
+		Enabled:           enabled,
+		MinAgeDays:        req.MinAgeDays,
+		MaxBitrate:        req.MaxBitrate,
+		MinSizeMB:         req.MinSizeMB,
+		BitrateSkipMargin: bitrateSkipMargin,
 	}
 	id, err := s.db.InsertDirectory(dir)
 	if err != nil {
@@ -427,11 +433,12 @@ func (s *Server) handleUpdateDirectory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Path       *string `json:"path"`
-		Enabled    *bool   `json:"enabled"`
-		MinAgeDays *int    `json:"min_age_days"`
-		MaxBitrate *int64  `json:"max_bitrate"`
-		MinSizeMB  *int64  `json:"min_size_mb"`
+		Path              *string  `json:"path"`
+		Enabled           *bool    `json:"enabled"`
+		MinAgeDays        *int     `json:"min_age_days"`
+		MaxBitrate        *int64   `json:"max_bitrate"`
+		MinSizeMB         *int64   `json:"min_size_mb"`
+		BitrateSkipMargin *float64 `json:"bitrate_skip_margin"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
@@ -456,6 +463,9 @@ func (s *Server) handleUpdateDirectory(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.MinSizeMB != nil {
 		d.MinSizeMB = *req.MinSizeMB
+	}
+	if req.BitrateSkipMargin != nil {
+		d.BitrateSkipMargin = *req.BitrateSkipMargin
 	}
 
 	if err := s.db.UpdateDirectory(d); err != nil {

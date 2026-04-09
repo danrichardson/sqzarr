@@ -54,6 +54,7 @@ func (db *DB) migrate() error {
 func (db *DB) alterations() error {
 	alters := []string{
 		`ALTER TABLE jobs ADD COLUMN fail_count INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE directories ADD COLUMN bitrate_skip_margin REAL NOT NULL DEFAULT 0.10`,
 	}
 	for _, stmt := range alters {
 		if _, err := db.conn.Exec(stmt); err != nil {
@@ -76,14 +77,15 @@ PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS directories (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    path          TEXT    NOT NULL UNIQUE,
-    enabled       BOOLEAN NOT NULL DEFAULT 1,
-    min_age_days  INTEGER NOT NULL DEFAULT 7,
-    max_bitrate   INTEGER NOT NULL DEFAULT 2222000,
-    min_size_mb   INTEGER NOT NULL DEFAULT 500,
-    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    path                 TEXT    NOT NULL UNIQUE,
+    enabled              BOOLEAN NOT NULL DEFAULT 1,
+    min_age_days         INTEGER NOT NULL DEFAULT 7,
+    max_bitrate          INTEGER NOT NULL DEFAULT 2222000,
+    min_size_mb          INTEGER NOT NULL DEFAULT 500,
+    bitrate_skip_margin  REAL    NOT NULL DEFAULT 0.10,
+    created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS jobs (
