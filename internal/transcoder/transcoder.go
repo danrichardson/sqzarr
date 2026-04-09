@@ -37,6 +37,12 @@ func (t *Transcoder) Encoder() *Encoder {
 	return t.encoder
 }
 
+// SetEncoder swaps the active encoder. The change takes effect on the next
+// transcode job — any currently running job continues with the old encoder.
+func (t *Transcoder) SetEncoder(enc *Encoder) {
+	t.encoder = enc
+}
+
 // Run transcodes inputPath to a temp file, returning the temp output path.
 // The caller is responsible for verifying and renaming the output.
 // onLog, if non-nil, is called with each non-metric stderr line (startup info, warnings, errors).

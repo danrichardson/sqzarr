@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useBlocker } from 'react-router-dom'
-import { api, type RuntimeConfig, type Status, type FSBrowseResult } from '../lib/api'
+import { api, type RuntimeConfig, type Status, type FSBrowseResult, type EncoderOption } from '../lib/api'
 import { Card } from '../components/Card'
 import { Cpu, Shield, Server, RefreshCw, FolderOpen, Plus, X, ChevronLeft } from 'lucide-react'
 import { basename } from '../lib/utils'
@@ -92,6 +92,8 @@ export function Settings() {
   const [cfg, setCfg] = useState<RuntimeConfig | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveResult, setSaveResult] = useState<'ok' | string | null>(null)
+  const [encoders, setEncoders] = useState<EncoderOption[]>([])
+  const [selectedEncoder, setSelectedEncoder] = useState('')
 
   // Editable form state — initialised from cfg once loaded
   const [concurrency, setConcurrency] = useState(1)
@@ -124,10 +126,11 @@ export function Settings() {
       plexEnabled !== cfg.plex_enabled ||
       plexURL !== cfg.plex_base_url ||
       plexToken !== '' ||
+      selectedEncoder !== cfg.encoder ||
       !rootsMatch
     )
   }, [cfg, concurrency, intervalHours, processedDirName, retentionDays, failThreshold,
-      systemFailThreshold, deleteConfirmSingle, plexEnabled, plexURL, plexToken, rootDirs])
+      systemFailThreshold, deleteConfirmSingle, plexEnabled, plexURL, plexToken, rootDirs, selectedEncoder])
 
   const blocker = useBlocker(isDirty)
 
@@ -139,8 +142,8 @@ export function Settings() {
   }, [isDirty])
 
   useEffect(() => {
-    Promise.all([api.getStatus(), api.getConfig()])
-      .then(([s, c]) => {
+    Promise.all([api.getStatus(), api.getConfig(), api.getEncoders()])
+      .then(([s, c, enc]) => {
         setStatus(s)
         setCfg(c)
         setConcurrency(c.worker_concurrency)
@@ -153,6 +156,8 @@ export function Settings() {
         setPlexEnabled(c.plex_enabled)
         setPlexURL(c.plex_base_url)
         setRootDirs(c.root_dirs ?? [])
+        setEncoders(enc)
+        setSelectedEncoder(c.encoder)
       })
       .catch(() => {})
   }, [])
@@ -173,13 +178,17 @@ export function Settings() {
         plex_enabled: plexEnabled,
         plex_base_url: plexURL,
         root_dirs: rootDirs,
+        encoder: selectedEncoder,
       }
       if (plexToken) {
         updates.plex_token = plexToken
       }
       const updated = await api.updateConfig(updates)
       setCfg(updated)
+      setSelectedEncoder(updated.encoder)
       setPlexToken('')
+      // Refresh encoder list to update active flags.
+      api.getEncoders().then(setEncoders).catch(() => {})
       setSaveResult('ok')
       setTimeout(() => setSaveResult(null), 3000)
     } catch (err: any) {
@@ -227,21 +236,39 @@ export function Settings() {
 
       <h1 className="text-xl font-semibold text-stone-900">Settings</h1>
 
-      {/* Hardware — read-only */}
-      <section>
-        <h2 className="text-sm font-medium text-stone-500 mb-3 flex items-center gap-1.5">
-          <Cpu size={14} /> Hardware
-        </h2>
-        <Card>
-          <p className="text-sm text-stone-700">
-            <span className="text-stone-400 mr-2">Active encoder</span>
-            {status?.encoder ?? '—'}
-          </p>
-        </Card>
-      </section>
-
       {cfg && (
         <form onSubmit={handleSave} className="space-y-6">
+          {/* Hardware Encoder */}
+          <section>
+            <h2 className="text-sm font-medium text-stone-500 mb-3 flex items-center gap-1.5">
+              <Cpu size={14} /> Hardware
+            </h2>
+            <Card className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <label className="text-sm text-stone-700">Active encoder</label>
+                  <p className="text-xs text-stone-400 mt-0.5">Select the encoder used for transcoding jobs</p>
+                </div>
+                <select
+                  value={selectedEncoder}
+                  onChange={e => setSelectedEncoder(e.target.value)}
+                  className="w-56 text-sm border border-stone-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                >
+                  {encoders.map(enc => (
+                    <option key={enc.type} value={enc.type}>
+                      {enc.display_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {selectedEncoder === 'software' && (
+                <p className="text-xs text-amber-600">
+                  Software encoding (libx265) is significantly slower than hardware encoding. Use only as a fallback.
+                </p>
+              )}
+            </Card>
+          </section>
+
           {/* Root Directories */}
           <section>
             <h2 className="text-sm font-medium text-stone-500 mb-3 flex items-center gap-1.5">

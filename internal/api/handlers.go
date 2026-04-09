@@ -15,6 +15,7 @@ import (
 
 	"github.com/danrichardson/sqzarr/internal/config"
 	"github.com/danrichardson/sqzarr/internal/db"
+	"github.com/danrichardson/sqzarr/internal/transcoder"
 )
 
 // GET /status
@@ -27,9 +28,12 @@ func (s *Server) handleGetStatus(w http.ResponseWriter, r *http.Request) {
 
 	diskFree, diskPath := s.diskFreeGB()
 	cpuPct, gpuMHz, gpuPct := s.sysStats()
+	s.mu.Lock()
+	encoderName := s.encoder.DisplayName
+	s.mu.Unlock()
 	out := map[string]any{
 		"version":            "1.0.0",
-		"encoder":            s.encoder.DisplayName,
+		"encoder":            encoderName,
 		"paused":             s.worker.IsPaused(),
 		"total_saved_gb":     float64(stats.TotalBytesSaved) / (1024 * 1024 * 1024),
 		"jobs_done":          stats.TotalJobsDone,
@@ -682,6 +686,28 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]string{"token": token})
 }
 
+// GET /encoders — returns all available encoders with active flag
+func (s *Server) handleGetEncoders(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	active := s.encoder.Type
+	s.mu.Unlock()
+
+	type encoderInfo struct {
+		Type        string `json:"type"`
+		DisplayName string `json:"display_name"`
+		Active      bool   `json:"active"`
+	}
+	out := make([]encoderInfo, 0, len(s.availableEncoders))
+	for _, enc := range s.availableEncoders {
+		out = append(out, encoderInfo{
+			Type:        string(enc.Type),
+			DisplayName: enc.DisplayName,
+			Active:      enc.Type == active,
+		})
+	}
+	jsonOK(w, out)
+}
+
 // GET /config — returns runtime-editable settings
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	plexToken := ""
@@ -692,6 +718,9 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	if roots == nil {
 		roots = []string{}
 	}
+	s.mu.Lock()
+	activeEncoder := string(s.encoder.Type)
+	s.mu.Unlock()
 	jsonOK(w, map[string]any{
 		"root_dirs":                  roots,
 		"worker_concurrency":         s.cfg.Scanner.WorkerConcurrency,
@@ -704,6 +733,7 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 		"plex_enabled":               s.cfg.Plex.Enabled,
 		"plex_base_url":              s.cfg.Plex.BaseURL,
 		"plex_token":                 plexToken,
+		"encoder":                    activeEncoder,
 	})
 }
 
@@ -721,6 +751,7 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 		PlexEnabled             *bool    `json:"plex_enabled"`
 		PlexBaseURL             *string  `json:"plex_base_url"`
 		PlexToken               *string  `json:"plex_token"`
+		Encoder                 *string  `json:"encoder"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
@@ -823,6 +854,28 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 	if req.PlexToken != nil && *req.PlexToken != "" {
 		s.cfg.Plex.Token = *req.PlexToken
 		fileUpdates["token"] = `"` + *req.PlexToken + `"`
+	}
+	if req.Encoder != nil {
+		chosen := *req.Encoder
+		// Validate against available encoders.
+		var match *transcoder.Encoder
+		for _, enc := range s.availableEncoders {
+			if string(enc.Type) == chosen {
+				match = enc
+				break
+			}
+		}
+		if match == nil {
+			jsonError(w, "encoder not available: "+chosen, http.StatusBadRequest)
+			return
+		}
+		s.mu.Lock()
+		s.encoder = match
+		s.mu.Unlock()
+		s.transcoder.SetEncoder(match)
+		s.cfg.Transcoder.Encoder = chosen
+		fileUpdates["encoder"] = `"` + chosen + `"`
+		s.log.Info("encoder changed", "encoder", match.DisplayName)
 	}
 
 	if s.cfgPath != "" && len(fileUpdates) > 0 {

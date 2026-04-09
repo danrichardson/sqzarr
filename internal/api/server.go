@@ -42,17 +42,20 @@ type sysSample struct {
 
 // Server is the HTTP API server.
 type Server struct {
-	cfg        *config.Config
-	cfgPath    string
-	db         *db.DB
-	worker     *queue.Worker
-	scanner    *scanner.Scanner
-	sched      Scheduler
-	encoder    *transcoder.Encoder
-	hub        *wsHub
-	log        *slog.Logger
-	httpServer *http.Server
-	sys        sysSample
+	cfg               *config.Config
+	cfgPath           string
+	db                *db.DB
+	worker            *queue.Worker
+	scanner           *scanner.Scanner
+	sched             Scheduler
+	encoder           *transcoder.Encoder
+	availableEncoders []*transcoder.Encoder
+	transcoder        *transcoder.Transcoder
+	hub               *wsHub
+	log               *slog.Logger
+	httpServer        *http.Server
+	sys               sysSample
+	mu                sync.Mutex // guards encoder hot-swap
 }
 
 // New creates a Server.
@@ -64,18 +67,22 @@ func New(
 	s *scanner.Scanner,
 	sched Scheduler,
 	enc *transcoder.Encoder,
+	allEncoders []*transcoder.Encoder,
+	tc *transcoder.Transcoder,
 	log *slog.Logger,
 ) *Server {
 	srv := &Server{
-		cfg:     cfg,
-		cfgPath: cfgPath,
-		db:      database,
-		worker:  w,
-		scanner: s,
-		sched:   sched,
-		encoder: enc,
-		hub:     newWSHub(),
-		log:     log,
+		cfg:               cfg,
+		cfgPath:           cfgPath,
+		db:                database,
+		worker:            w,
+		scanner:           s,
+		sched:             sched,
+		encoder:           enc,
+		availableEncoders: allEncoders,
+		transcoder:        tc,
+		hub:               newWSHub(),
+		log:               log,
 	}
 
 	// Subscribe worker events to WebSocket hub; also persist auto-pause to config.
@@ -130,6 +137,9 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	// Scanner
 	api.HandleFunc("POST /scan", s.handleTriggerScan)
 	api.HandleFunc("GET /scan/last", s.handleLastScan)
+
+	// Encoders
+	api.HandleFunc("GET /encoders", s.handleGetEncoders)
 
 	// Runtime config
 	api.HandleFunc("GET /config", s.handleGetConfig)

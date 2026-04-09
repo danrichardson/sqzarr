@@ -94,10 +94,28 @@ func runServe(cfgPath string) {
 		log.Info("reset stale running jobs", "count", n)
 	}
 
-	enc, err := transcoder.Detect()
-	if err != nil {
-		log.Error("detect encoder", "error", err)
-		os.Exit(1)
+	allEncoders := transcoder.DetectAll()
+	log.Info("encoders detected", "count", len(allEncoders))
+	for _, e := range allEncoders {
+		log.Info("  encoder available", "type", e.Type, "name", e.DisplayName)
+	}
+
+	// Select encoder: honor config preference, otherwise pick best available.
+	var enc *transcoder.Encoder
+	if preferred := cfg.Transcoder.Encoder; preferred != "" {
+		for _, e := range allEncoders {
+			if string(e.Type) == preferred {
+				enc = e
+				break
+			}
+		}
+		if enc == nil {
+			log.Warn("configured encoder not available, falling back to best detected",
+				"configured", preferred)
+		}
+	}
+	if enc == nil {
+		enc = allEncoders[0] // first HW encoder, or software if none
 	}
 	log.Info("encoder selected", "encoder", enc.DisplayName)
 
@@ -129,7 +147,7 @@ func runServe(cfgPath string) {
 	go sched.Run(ctx)
 
 	// Start HTTP server in background.
-	httpServer := api.New(cfg, cfgPath, database, worker, scan, sched, enc, log)
+	httpServer := api.New(cfg, cfgPath, database, worker, scan, sched, enc, allEncoders, t, log)
 	go func() {
 		if err := httpServer.Start(ctx); err != nil {
 			log.Error("HTTP server error", "error", err)

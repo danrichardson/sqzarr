@@ -121,6 +121,13 @@ export interface RuntimeConfig {
   plex_enabled: boolean
   plex_base_url: string
   plex_token: string  // empty string = not set; "SET" = already configured
+  encoder: string     // active encoder type: "vaapi", "nvenc", "videotoolbox", "software"
+}
+
+export interface EncoderOption {
+  type: string
+  display_name: string
+  active: boolean
 }
 
 export interface LastScanRun {
@@ -200,8 +207,10 @@ export const api = {
   resumeQueue: () => request<{ paused: boolean }>('POST', '/queue/resume'),
 
   getConfig: () => request<RuntimeConfig>('GET', '/config'),
-  updateConfig: (updates: Partial<RuntimeConfig> & { plex_token?: string; root_dirs?: string[] }) =>
+  updateConfig: (updates: Partial<RuntimeConfig> & { plex_token?: string; root_dirs?: string[]; encoder?: string }) =>
     request<RuntimeConfig>('PUT', '/config', updates),
+
+  getEncoders: () => request<EncoderOption[]>('GET', '/encoders'),
 
   listOriginals: () => request<OriginalRecord[]>('GET', '/originals'),
   deleteOriginal: (id: number) => request<void>('DELETE', `/originals/${id}`),

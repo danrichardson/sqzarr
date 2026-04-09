@@ -39,6 +39,40 @@ func Detect() (*Encoder, error) {
 	return softwareEncoder(), nil
 }
 
+// DetectAll probes every encoder independently and returns all that are
+// available. The software encoder is always included as the last entry.
+func DetectAll() []*Encoder {
+	var encoders []*Encoder
+	if enc := probeVAAPI(); enc != nil {
+		encoders = append(encoders, enc)
+	}
+	if enc := probeVideoToolbox(); enc != nil {
+		encoders = append(encoders, enc)
+	}
+	if enc := probeNVENC(); enc != nil {
+		encoders = append(encoders, enc)
+	}
+	encoders = append(encoders, softwareEncoder())
+	return encoders
+}
+
+// DetectByType returns the encoder for a specific type without probing.
+// Returns nil if the type is unknown.
+func DetectByType(t EncoderType) *Encoder {
+	switch t {
+	case EncoderVAAPI:
+		return vaapiEncoder()
+	case EncoderVideoToolbox:
+		return videoToolboxEncoder()
+	case EncoderNVENC:
+		return nvencEncoder()
+	case EncoderSoftware:
+		return softwareEncoder()
+	default:
+		return nil
+	}
+}
+
 func probeVAAPI() *Encoder {
 	// Check that /dev/dri/renderD128 exists and hevc_vaapi is available.
 	if err := exec.Command("ffmpeg", "-hide_banner", "-encoders").Run(); err != nil {

@@ -36,6 +36,9 @@ type ScannerConfig struct {
 
 type TranscoderConfig struct {
 	TempDir string `toml:"temp_dir"`
+	// Encoder selects the preferred encoder: "vaapi", "videotoolbox", "nvenc",
+	// "software", or "" (empty = auto-detect best available).
+	Encoder string `toml:"encoder"`
 }
 
 type SafetyConfig struct {
