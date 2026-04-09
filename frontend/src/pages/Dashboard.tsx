@@ -184,14 +184,19 @@ export function Dashboard() {
             </p>
           </Card>
         </Link>
-        <Card>
-          <CardTitle>Jobs Done</CardTitle>
-          <p className="text-2xl font-semibold text-stone-900">{status?.jobs_done ?? '—'}</p>
-        </Card>
-        <Card>
-          <CardTitle>Failed</CardTitle>
-          <p className="text-2xl font-semibold text-red-600">{status?.jobs_failed ?? '—'}</p>
-        </Card>
+        <Link to="/history?status=done">
+          <Card className="cursor-pointer hover:border-stone-300 transition-colors">
+            <CardTitle>Jobs Done</CardTitle>
+            <p className="text-2xl font-semibold text-stone-900">{status?.jobs_done ?? '—'}</p>
+          </Card>
+        </Link>
+        <Link to="/history?status=failed">
+          <Card className="cursor-pointer hover:border-red-300 transition-colors">
+            <CardTitle>Failed</CardTitle>
+            <p className="text-2xl font-semibold text-red-600">{status?.jobs_failed ?? '—'}</p>
+          </Card>
+        </Link>
+        <div title="Queue processing status — use the Pause/Resume button above to control">
         <Card>
           <CardTitle>Status</CardTitle>
           <div className="flex items-center gap-2 mt-1">
@@ -201,6 +206,7 @@ export function Dashboard() {
             </span>
           </div>
         </Card>
+        </div>
       </div>
 
       {/* System health */}
