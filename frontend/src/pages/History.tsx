@@ -1,22 +1,30 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, type Job } from '../lib/api'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatBytes, timeAgo, basename } from '../lib/utils'
 import { ChevronDown, ChevronUp, RotateCcw, Trash2, ArrowRight } from 'lucide-react'
 
 const PAGE_SIZE = 50
+const STATUS_FILTERS = ['all', 'done', 'staged', 'failed', 'cancelled', 'skipped', 'excluded'] as const
 
 export function History() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const statusParam = searchParams.get('status') ?? 'all'
+
   const [jobs, setJobs] = useState<Job[]>([])
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [clearing, setClearing] = useState(false)
 
+  const activeFilter = STATUS_FILTERS.includes(statusParam as any) ? statusParam : 'all'
+
   const load = useCallback(async (reset = false) => {
     const off = reset ? 0 : offset
+    const statusArg = activeFilter === 'all' ? undefined : activeFilter
     try {
-      const results = await api.listJobs(undefined, PAGE_SIZE, off)
+      const results = await api.listJobs(statusArg, PAGE_SIZE, off)
       const list = results ?? []
       if (reset) {
         setJobs(list)
@@ -27,9 +35,9 @@ export function History() {
       }
       setHasMore(list.length === PAGE_SIZE)
     } catch {}
-  }, [offset])
+  }, [offset, activeFilter])
 
-  useEffect(() => { load(true) }, [])
+  useEffect(() => { load(true) }, [activeFilter])
 
   const retry = async (id: number) => {
     try {
@@ -70,6 +78,29 @@ export function History() {
             {clearing ? 'Clearing…' : 'Clear History'}
           </button>
         )}
+      </div>
+
+      {/* Status filter pills */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {STATUS_FILTERS.map(f => (
+          <button
+            key={f}
+            onClick={() => {
+              if (f === 'all') {
+                setSearchParams({})
+              } else {
+                setSearchParams({ status: f })
+              }
+            }}
+            className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
+              activeFilter === f
+                ? 'bg-stone-800 text-white border-stone-800'
+                : 'bg-white text-stone-600 border-stone-300 hover:bg-stone-50'
+            }`}
+          >
+            {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
       </div>
 
       {jobs.length === 0 ? (
