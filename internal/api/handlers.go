@@ -245,6 +245,36 @@ func (s *Server) handleEnqueueDir(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]int{"queued": queued, "skipped": skipped})
 }
 
+// POST /files/reprocess — remove a file's processed_files record so it can be re-queued.
+// Body: {"path": "/path/to/file"}
+func (s *Server) handleReprocessFile(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.Path == "" {
+		jsonError(w, "path is required", http.StatusBadRequest)
+		return
+	}
+	pf, err := s.db.GetProcessedFile(req.Path)
+	if err != nil {
+		jsonError(w, "database error", http.StatusInternalServerError)
+		return
+	}
+	if pf == nil {
+		jsonError(w, "file not found in processed records", http.StatusNotFound)
+		return
+	}
+	if err := s.db.DeleteProcessedFile(req.Path); err != nil {
+		jsonError(w, "database error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, map[string]string{"status": "ok", "path": req.Path})
+}
+
 // POST /jobs/clear — delete failed/cancelled/skipped/released jobs from history
 func (s *Server) handleClearHistory(w http.ResponseWriter, r *http.Request) {
 	n, err := s.db.ClearHistory()

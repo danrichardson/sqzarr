@@ -150,4 +150,17 @@ CREATE TABLE IF NOT EXISTS stats (
 );
 
 INSERT OR IGNORE INTO stats (id) VALUES (1);
+
+CREATE TABLE IF NOT EXISTS processed_files (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_path  TEXT    NOT NULL UNIQUE,
+    status       TEXT    NOT NULL,  -- done, excluded, skipped
+    reason       TEXT,
+    source_size  INTEGER NOT NULL DEFAULT 0,
+    source_mtime DATETIME,
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_processed_files_source_path ON processed_files(source_path);
 `

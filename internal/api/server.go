@@ -116,6 +116,9 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	api.HandleFunc("POST /jobs/{id}/retry", s.handleRetryJob)
 	api.HandleFunc("GET /jobs/{id}/log", s.handleGetJobLog)
 
+	// Files
+	api.HandleFunc("POST /files/reprocess", s.handleReprocessFile)
+
 	// Directories
 	api.HandleFunc("GET /directories", s.handleListDirectories)
 	api.HandleFunc("POST /directories", s.handleCreateDirectory)

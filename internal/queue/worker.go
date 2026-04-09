@@ -275,6 +275,10 @@ func (w *Worker) processJob(ctx context.Context, job *db.Job) {
 		if result.Uncompressible {
 			// File won't benefit from re-encoding — exclude permanently.
 			w.db.ExcludeJob(job.ID, "uncompressible: "+result.Reason)
+			// Durably record as excluded so it survives history clears.
+			if fi, serr := os.Stat(job.SourcePath); serr == nil {
+				w.db.UpsertProcessedFile(job.SourcePath, "excluded", "uncompressible: "+result.Reason, fi.Size(), fi.ModTime())
+			}
 			w.emit(Event{Type: EventFailed, JobID: job.ID, Error: result.Reason})
 			return
 		}
@@ -332,6 +336,13 @@ func (w *Worker) processJob(ctx context.Context, job *db.Job) {
 		w.log.Error("stage job in db", "job_id", job.ID, "error", err)
 	}
 
+	// Durably record the file as processed so it survives history clears.
+	if fi, serr := os.Stat(finalOutputPath); serr == nil {
+		if uerr := w.db.UpsertProcessedFile(job.SourcePath, "done", "", fi.Size(), fi.ModTime()); uerr != nil {
+			w.log.Error("upsert processed file", "job_id", job.ID, "error", uerr)
+		}
+	}
+
 	w.log.Info("job staged",
 		"job_id", job.ID,
 		"output", finalOutputPath,
@@ -365,6 +376,10 @@ func (w *Worker) handleFailure(job *db.Job, reason string) {
 		w.log.Warn("excluding job after repeated failures",
 			"job_id", job.ID, "fail_count", failCount, "reason", reason)
 		w.db.ExcludeJob(job.ID, reason)
+		// Durably record as excluded so it survives history clears.
+		if fi, serr := os.Stat(job.SourcePath); serr == nil {
+			w.db.UpsertProcessedFile(job.SourcePath, "excluded", reason, fi.Size(), fi.ModTime())
+		}
 	} else {
 		w.db.UpdateJobStatus(job.ID, db.JobFailed, reason)
 	}

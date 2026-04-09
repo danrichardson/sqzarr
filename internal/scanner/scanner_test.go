@@ -231,3 +231,57 @@ func TestScanDeduplicates(t *testing.T) {
 		t.Errorf("expected 0 queued on second scan, got %d", result.FilesQueued)
 	}
 }
+
+// TestClearHistoryDoesNotRequeueExcluded verifies that excluded files with a
+// processed_files record are NOT re-queued after ClearHistory deletes the
+// job rows.
+func TestClearHistoryDoesNotRequeueExcluded(t *testing.T) {
+	database := testutil.NewTestDB(t)
+	dir := t.TempDir()
+
+	clipPath := testutil.MakeTestClip(t, dir, 30)
+	past := time.Now().Add(-10 * 24 * time.Hour)
+	os.Chtimes(clipPath, past, past)
+
+	dirID, _ := database.InsertDirectory(&db.Directory{
+		Path:       dir,
+		Enabled:    true,
+		MinAgeDays: 7,
+		MaxBitrate: 0,
+	})
+	dbDir, _ := database.GetDirectory(dirID)
+	s := scanner.New(database, ".processed", testLog(t))
+
+	// First scan queues the file.
+	s.ScanDirectory(context.Background(), dbDir)
+
+	// Simulate the worker excluding the file: mark the job as excluded and
+	// upsert a durable processed_files record.
+	jobs, _ := database.ListJobs(db.JobPending, 10, 0)
+	if len(jobs) != 1 {
+		t.Fatalf("expected 1 pending job, got %d", len(jobs))
+	}
+	database.ExcludeJob(jobs[0].ID, "uncompressible")
+
+	fi, _ := os.Stat(clipPath)
+	database.UpsertProcessedFile(clipPath, "excluded", "uncompressible", fi.Size(), fi.ModTime())
+
+	// Clear history — this deletes the excluded job row from the jobs table.
+	n, err := database.ClearHistory()
+	if err != nil {
+		t.Fatalf("clear history: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 deleted, got %d", n)
+	}
+
+	// Scan again — the file should NOT be re-queued because the
+	// processed_files record still exists.
+	result, err := s.ScanDirectory(context.Background(), dbDir)
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	if result.FilesQueued != 0 {
+		t.Errorf("expected 0 queued after clear+rescan, got %d (bug: excluded file re-queued)", result.FilesQueued)
+	}
+}

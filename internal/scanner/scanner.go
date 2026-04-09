@@ -119,6 +119,22 @@ func (s *Scanner) ScanDirectory(ctx context.Context, dir *db.Directory) (*Result
 // maybeEnqueue evaluates a file against directory rules and inserts a pending
 // job if it qualifies. Returns (queued, skipReason, error).
 func (s *Scanner) maybeEnqueue(ctx context.Context, path string, dir *db.Directory) (bool, string, error) {
+	// Stat the file early — we need size/mtime for the processed-files check.
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, "", fmt.Errorf("stat: %w", err)
+	}
+
+	// Check the durable processed_files table first. If the file was already
+	// handled and hasn't changed on disk, skip it regardless of job history.
+	processed, err := s.db.IsFileProcessed(path, info.Size(), info.ModTime())
+	if err != nil {
+		return false, "", err
+	}
+	if processed {
+		return false, "already processed", nil
+	}
+
 	// Skip if a non-retriable job already exists for this path.
 	status, err := s.db.SourcePathStatus(path)
 	if err != nil {
@@ -139,11 +155,6 @@ func (s *Scanner) maybeEnqueue(ctx context.Context, path string, dir *db.Directo
 	}
 	if isOutput {
 		return false, "already a transcode output", nil
-	}
-
-	info, err := os.Stat(path)
-	if err != nil {
-		return false, "", fmt.Errorf("stat: %w", err)
 	}
 
 	// Age check.
