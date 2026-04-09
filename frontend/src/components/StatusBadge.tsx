@@ -10,6 +10,7 @@ const config: Record<Job['Status'], { label: string; className: string }> = {
   cancelled: { label: 'Cancelled', className: 'bg-stone-100 text-stone-500' },
   skipped:   { label: 'Skipped',   className: 'bg-stone-100 text-stone-500' },
   excluded:  { label: 'Excluded',  className: 'bg-orange-100 text-orange-700' },
+  error:     { label: 'Error',     className: 'bg-red-100 text-red-700' },
   restored:  { label: 'Restored',  className: 'bg-blue-100 text-blue-700' },
 }
 

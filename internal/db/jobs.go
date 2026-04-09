@@ -19,6 +19,7 @@ const (
 	JobCancelled JobStatus = "cancelled"
 	JobSkipped   JobStatus = "skipped"
 	JobExcluded  JobStatus = "excluded"  // permanently skipped: uncompressible or repeated failure
+	JobError     JobStatus = "error"     // I/O or permission error needing human intervention
 	JobRestored  JobStatus = "restored"  // original moved back; transcoded copy deleted
 )
 
@@ -133,7 +134,7 @@ func (db *DB) ListJobs(status JobStatus, limit, offset int) ([]*Job, error) {
 func (db *DB) UpdateJobStatus(id int64, status JobStatus, errMsg string) error {
 	var err error
 	terminalWithTime := status == JobDone || status == JobStaged || status == JobFailed ||
-		status == JobCancelled || status == JobRestored || status == JobExcluded
+		status == JobCancelled || status == JobRestored || status == JobExcluded || status == JobError
 	if status == JobRunning {
 		_, err = db.conn.Exec(
 			`UPDATE jobs SET status=?, started_at=CURRENT_TIMESTAMP, error_message=NULL WHERE id=?`,
@@ -233,7 +234,7 @@ func (db *DB) ResetRunningJobs() (int, error) {
 // Processing state is preserved in the processed_files table (TKT-004), so
 // cleared files will NOT be re-queued by the scanner.
 func (db *DB) ClearHistory() (int, error) {
-	terminalStatuses := `('done','staged','failed','cancelled','skipped','excluded','restored')`
+	terminalStatuses := `('done','staged','failed','cancelled','skipped','excluded','error','restored')`
 	_, err := db.conn.Exec(`DELETE FROM originals WHERE job_id IN
 		(SELECT id FROM jobs WHERE status IN ` + terminalStatuses + `)`)
 	if err != nil {
@@ -374,7 +375,7 @@ func (db *DB) ConsecutiveFailCount() (int, error) {
 	// Walk back through recent finished jobs counting consecutive failures.
 	rows, err := db.conn.Query(`
 		SELECT status FROM jobs
-		WHERE status IN ('failed','staged','done','excluded','restored')
+		WHERE status IN ('failed','staged','done','excluded','error','restored')
 		ORDER BY finished_at DESC
 		LIMIT 20`)
 	if err != nil {
@@ -388,7 +389,7 @@ func (db *DB) ConsecutiveFailCount() (int, error) {
 		if err := rows.Scan(&s); err != nil {
 			break
 		}
-		if s == JobFailed {
+		if s == JobFailed || s == JobError {
 			count++
 		} else {
 			break

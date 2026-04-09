@@ -6,7 +6,7 @@ import { formatBytes, timeAgo, basename } from '../lib/utils'
 import { ChevronDown, ChevronUp, RotateCcw, Trash2, ArrowRight } from 'lucide-react'
 
 const PAGE_SIZE = 50
-const STATUS_FILTERS = ['all', 'done', 'staged', 'failed', 'cancelled', 'skipped', 'excluded'] as const
+const STATUS_FILTERS = ['all', 'done', 'staged', 'failed', 'cancelled', 'skipped', 'excluded', 'error'] as const
 
 export function History() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -136,7 +136,7 @@ export function History() {
                       SW
                     </span>
                   )}
-                  {(job.Status === 'failed' || job.Status === 'cancelled') && (
+                  {(job.Status === 'failed' || job.Status === 'cancelled' || job.Status === 'error') && (
                     <button
                       onClick={e => { e.stopPropagation(); retry(job.ID) }}
                       className="text-stone-400 hover:text-amber-600 transition-colors"

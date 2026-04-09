@@ -357,9 +357,34 @@ func (w *Worker) processJob(ctx context.Context, job *db.Job) {
 	}
 }
 
+// isIOError returns true if the error message indicates an I/O or permission
+// problem that needs human intervention rather than a transcode logic failure.
+func isIOError(errMsg string) bool {
+	lower := strings.ToLower(errMsg)
+	patterns := []string{
+		"permission denied",
+		"access is denied",
+		"read-only file system",
+		"no space left on device",
+		"disk full",
+		"input/output error",
+		"i/o error",
+		"operation not permitted",
+		"is a directory",
+		"too many open files",
+	}
+	for _, p := range patterns {
+		if strings.Contains(lower, p) {
+			return true
+		}
+	}
+	return false
+}
+
 // handleFailure increments the fail counter for a job and either excludes it
-// (if the per-file threshold is reached) or marks it failed. It also checks
-// whether the system-level consecutive failure threshold has been hit.
+// (if the per-file threshold is reached) or marks it failed/error. I/O errors
+// (permission denied, disk full, etc.) become "error" status which needs human
+// attention; non-I/O failures become "excluded" after hitting the threshold.
 func (w *Worker) handleFailure(job *db.Job, reason string) {
 	failCount, err := w.db.IncrementFailCount(job.ID)
 	if err != nil {
@@ -373,12 +398,22 @@ func (w *Worker) handleFailure(job *db.Job, reason string) {
 	}
 
 	if failCount >= threshold {
-		w.log.Warn("excluding job after repeated failures",
-			"job_id", job.ID, "fail_count", failCount, "reason", reason)
-		w.db.ExcludeJob(job.ID, reason)
-		// Durably record as excluded so it survives history clears.
-		if fi, serr := os.Stat(job.SourcePath); serr == nil {
-			w.db.UpsertProcessedFile(job.SourcePath, "excluded", reason, fi.Size(), fi.ModTime())
+		if isIOError(reason) {
+			// I/O errors need human intervention — mark as error, not excluded.
+			w.log.Warn("marking job as error (I/O failure)",
+				"job_id", job.ID, "fail_count", failCount, "reason", reason)
+			w.db.UpdateJobStatus(job.ID, db.JobError, reason)
+			if fi, serr := os.Stat(job.SourcePath); serr == nil {
+				w.db.UpsertProcessedFile(job.SourcePath, "error", reason, fi.Size(), fi.ModTime())
+			}
+		} else {
+			w.log.Warn("excluding job after repeated failures",
+				"job_id", job.ID, "fail_count", failCount, "reason", reason)
+			w.db.ExcludeJob(job.ID, reason)
+			// Durably record as excluded so it survives history clears.
+			if fi, serr := os.Stat(job.SourcePath); serr == nil {
+				w.db.UpsertProcessedFile(job.SourcePath, "excluded", reason, fi.Size(), fi.ModTime())
+			}
 		}
 	} else {
 		w.db.UpdateJobStatus(job.ID, db.JobFailed, reason)

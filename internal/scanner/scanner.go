@@ -142,8 +142,8 @@ func (s *Scanner) maybeEnqueue(ctx context.Context, path string, dir *db.Directo
 	}
 	switch status {
 	case "": // no job yet — proceed
-	case db.JobFailed, db.JobRestored:
-		// Failed or restored files can be re-queued on the next scan.
+	case db.JobFailed, db.JobRestored, db.JobError:
+		// Failed, restored, or errored files can be re-queued on the next scan.
 	default:
 		return false, "status:" + string(status), nil
 	}

@@ -56,7 +56,7 @@ export interface Job {
   SourceCodec: string
   SourceDuration: number
   SourceBitrate: number
-  Status: 'pending' | 'running' | 'done' | 'staged' | 'failed' | 'cancelled' | 'skipped' | 'excluded' | 'restored'
+  Status: 'pending' | 'running' | 'done' | 'staged' | 'failed' | 'cancelled' | 'skipped' | 'excluded' | 'error' | 'restored'
   Progress: number
   BytesSaved: { Int64: number; Valid: boolean } | null
   OutputSize: { Int64: number; Valid: boolean } | null
