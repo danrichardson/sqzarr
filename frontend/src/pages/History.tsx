@@ -47,7 +47,7 @@ export function History() {
   }
 
   const clearHistory = async () => {
-    if (!confirm('Clear all failed, cancelled, and skipped jobs from history?')) return
+    if (!confirm('Clear all completed and terminal jobs from history? Files will not be re-processed.')) return
     setClearing(true)
     try {
       await api.clearHistory()

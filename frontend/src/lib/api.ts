@@ -208,7 +208,7 @@ export const api = {
   restoreOriginal: (id: number, exclude = false) =>
     request<void>('POST', `/originals/${id}/restore`, { exclude }),
 
-  clearHistory: () => request<{ deleted: number }>('POST', '/jobs/clear'),
+  clearHistory: () => request<{ cleared: number }>('POST', '/jobs/clear'),
 
   getJobLog: (id: number, n = 20) =>
     request<{ lines: string[] }>('GET', `/jobs/${id}/log?n=${n}`),

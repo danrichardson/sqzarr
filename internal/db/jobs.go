@@ -230,8 +230,10 @@ func (db *DB) ResetRunningJobs() (int, error) {
 }
 
 // ClearHistory deletes terminal (non-active) jobs and their originals records.
+// Processing state is preserved in the processed_files table (TKT-004), so
+// cleared files will NOT be re-queued by the scanner.
 func (db *DB) ClearHistory() (int, error) {
-	terminalStatuses := `('failed','cancelled','skipped','excluded','restored')`
+	terminalStatuses := `('done','staged','failed','cancelled','skipped','excluded','restored')`
 	_, err := db.conn.Exec(`DELETE FROM originals WHERE job_id IN
 		(SELECT id FROM jobs WHERE status IN ` + terminalStatuses + `)`)
 	if err != nil {

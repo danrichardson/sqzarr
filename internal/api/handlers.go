@@ -282,7 +282,7 @@ func (s *Server) handleClearHistory(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "database error", http.StatusInternalServerError)
 		return
 	}
-	jsonOK(w, map[string]int{"deleted": n})
+	jsonOK(w, map[string]int{"cleared": n})
 }
 
 // POST /jobs/{id}/retry
