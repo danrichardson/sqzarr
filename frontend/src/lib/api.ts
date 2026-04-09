@@ -231,6 +231,9 @@ export const api = {
 
   login: (password: string) =>
     request<{ token: string }>('POST', '/auth/login', { password }),
+
+  changePassword: (current_password: string, new_password: string) =>
+    request<{ status: string }>('POST', '/auth/change-password', { current_password, new_password }),
 }
 
 // ---- SSE ----

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useBlocker } from 'react-router-dom'
 import { api, type RuntimeConfig, type Status, type FSBrowseResult, type EncoderOption } from '../lib/api'
 import { Card } from '../components/Card'
-import { Cpu, Shield, Server, RefreshCw, FolderOpen, Plus, X, ChevronLeft } from 'lucide-react'
+import { Cpu, Shield, Server, RefreshCw, FolderOpen, Plus, X, ChevronLeft, Lock } from 'lucide-react'
 import { basename } from '../lib/utils'
 
 // Unrestricted directory browser — used only for selecting root directories.
@@ -109,6 +109,13 @@ export function Settings() {
   const [rootDirs, setRootDirs] = useState<string[]>([])
   const [newRootInput, setNewRootInput] = useState('')
   const [showRootBrowser, setShowRootBrowser] = useState(false)
+
+  // Password change form state
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwResult, setPwResult] = useState<'ok' | string | null>(null)
 
   const isDirty = useMemo(() => {
     if (!cfg) return false
@@ -527,17 +534,84 @@ export function Settings() {
         </form>
       )}
 
-      {/* Auth info — read-only */}
+      {/* Password Change */}
       <section>
         <h2 className="text-sm font-medium text-stone-500 mb-3 flex items-center gap-1.5">
-          <Shield size={14} /> Authentication
+          <Lock size={14} /> Change Password
         </h2>
-        <Card>
-          <p className="text-sm text-stone-600">
-            To change the password, run{' '}
-            <code className="text-xs bg-stone-100 px-1 py-0.5 rounded font-mono">sqzarr hash-password</code>
-            {' '}and update <code className="text-xs bg-stone-100 px-1 py-0.5 rounded font-mono">sqzarr.toml</code>.
-          </p>
+        <Card className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <label className="text-sm text-stone-700 shrink-0">Current password</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={e => setCurrentPassword(e.target.value)}
+                className="flex-1 min-w-0 max-w-xs text-sm border border-stone-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <label className="text-sm text-stone-700 shrink-0">New password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                className="flex-1 min-w-0 max-w-xs text-sm border border-stone-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <label className="text-sm text-stone-700 shrink-0">Confirm new password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                className="flex-1 min-w-0 max-w-xs text-sm border border-stone-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            </div>
+            {confirmPassword && newPassword !== confirmPassword && (
+              <p className="text-xs text-red-600">Passwords do not match</p>
+            )}
+            {newPassword && newPassword.length < 8 && (
+              <p className="text-xs text-amber-600">Password must be at least 8 characters</p>
+            )}
+          </div>
+          <div className="flex items-center justify-end gap-3">
+            {pwResult === 'ok' && (
+              <span className="text-sm text-green-700">Password changed</span>
+            )}
+            {pwResult && pwResult !== 'ok' && (
+              <span className="text-sm text-red-600">{pwResult}</span>
+            )}
+            <button
+              type="button"
+              disabled={
+                pwSaving ||
+                !currentPassword ||
+                !newPassword ||
+                newPassword.length < 8 ||
+                newPassword !== confirmPassword
+              }
+              onClick={async () => {
+                setPwSaving(true)
+                setPwResult(null)
+                try {
+                  await api.changePassword(currentPassword, newPassword)
+                  setPwResult('ok')
+                  setCurrentPassword('')
+                  setNewPassword('')
+                  setConfirmPassword('')
+                  setTimeout(() => setPwResult(null), 3000)
+                } catch (err: any) {
+                  setPwResult(err.message || 'Failed to change password')
+                } finally {
+                  setPwSaving(false)
+                }
+              }}
+              className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-md transition-colors"
+            >
+              {pwSaving ? 'Changing...' : 'Change Password'}
+            </button>
+          </div>
         </Card>
       </section>
 

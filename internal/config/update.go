@@ -20,6 +20,7 @@ var keySection = map[string]string{
 	"system_fail_threshold":   "safety",
 	"delete_confirm_single":   "safety",
 	"encoder":                 "transcoder",
+	"password_hash":           "auth",
 	"enabled":                 "plex",
 	"base_url":                "plex",
 	"token":                   "plex",

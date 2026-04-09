@@ -686,6 +686,61 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]string{"token": token})
 }
 
+// POST /auth/change-password — change the user's password
+func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.Auth.PasswordHash == "" {
+		jsonError(w, "authentication not configured", http.StatusNotFound)
+		return
+	}
+
+	var req struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		jsonError(w, "current_password and new_password are required", http.StatusBadRequest)
+		return
+	}
+	if len(req.NewPassword) < 8 {
+		jsonError(w, "new password must be at least 8 characters", http.StatusBadRequest)
+		return
+	}
+
+	// Verify current password.
+	if err := bcrypt.CompareHashAndPassword(
+		[]byte(s.cfg.Auth.PasswordHash),
+		[]byte(req.CurrentPassword),
+	); err != nil {
+		jsonError(w, "current password is incorrect", http.StatusUnauthorized)
+		return
+	}
+
+	// Hash the new password.
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		jsonError(w, "failed to hash password", http.StatusInternalServerError)
+		return
+	}
+
+	// Update in memory.
+	s.cfg.Auth.PasswordHash = string(hash)
+
+	// Persist to config file.
+	if s.cfgPath != "" {
+		if err := config.UpdateFile(s.cfgPath, map[string]string{
+			"password_hash": `"` + string(hash) + `"`,
+		}); err != nil {
+			s.log.Warn("could not persist password change", "error", err)
+		}
+	}
+
+	jsonOK(w, map[string]string{"status": "password changed"})
+}
+
 // GET /encoders — returns all available encoders with active flag
 func (s *Server) handleGetEncoders(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()

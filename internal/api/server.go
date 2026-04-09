@@ -165,6 +165,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 	// Auth
 	api.HandleFunc("POST /auth/login", s.handleLogin)
+	api.HandleFunc("POST /auth/change-password", s.handleChangePassword)
 
 	// Wrap all API routes with auth middleware.
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1",
