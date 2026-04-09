@@ -584,6 +584,33 @@ export function Settings() {
             {pwResult && pwResult !== 'ok' && (
               <span className="text-sm text-red-600">{pwResult}</span>
             )}
+            {cfg?.has_password && (
+              <button
+                type="button"
+                disabled={pwSaving || !currentPassword}
+                onClick={async () => {
+                  if (!confirm('Remove password protection? The UI will be accessible without login.')) return
+                  setPwSaving(true)
+                  setPwResult(null)
+                  try {
+                    await api.removePassword(currentPassword)
+                    setPwResult('ok')
+                    setCurrentPassword('')
+                    setNewPassword('')
+                    setConfirmPassword('')
+                    setCfg(prev => prev ? { ...prev, has_password: false } : prev)
+                    setTimeout(() => setPwResult(null), 3000)
+                  } catch (err: any) {
+                    setPwResult(err.message || 'Failed to remove password')
+                  } finally {
+                    setPwSaving(false)
+                  }
+                }}
+                className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-md transition-colors"
+              >
+                Remove Password
+              </button>
+            )}
             <button
               type="button"
               disabled={
@@ -602,6 +629,7 @@ export function Settings() {
                   setCurrentPassword('')
                   setNewPassword('')
                   setConfirmPassword('')
+                  setCfg(prev => prev ? { ...prev, has_password: true } : prev)
                   setTimeout(() => setPwResult(null), 3000)
                 } catch (err: any) {
                   setPwResult(err.message || 'Failed to change password')

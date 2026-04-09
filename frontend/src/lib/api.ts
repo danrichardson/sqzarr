@@ -235,6 +235,9 @@ export const api = {
 
   changePassword: (current_password: string, new_password: string) =>
     request<{ status: string }>('POST', '/auth/change-password', { current_password, new_password }),
+
+  removePassword: (current_password: string) =>
+    request<{ status: string }>('DELETE', '/auth/password', { current_password }),
 }
 
 // ---- SSE ----

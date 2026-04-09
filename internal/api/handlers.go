@@ -742,6 +742,45 @@ func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]string{"status": "password changed"})
 }
 
+// DELETE /auth/password — remove the password (requires current password)
+func (s *Server) handleRemovePassword(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.Auth.PasswordHash == "" {
+		jsonError(w, "no password is set", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		CurrentPassword string `json:"current_password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.CurrentPassword == "" {
+		jsonError(w, "current_password is required", http.StatusBadRequest)
+		return
+	}
+	if err := bcrypt.CompareHashAndPassword(
+		[]byte(s.cfg.Auth.PasswordHash),
+		[]byte(req.CurrentPassword),
+	); err != nil {
+		jsonError(w, "current password is incorrect", http.StatusUnauthorized)
+		return
+	}
+
+	s.cfg.Auth.PasswordHash = ""
+
+	if s.cfgPath != "" {
+		if err := config.UpdateFile(s.cfgPath, map[string]string{
+			"password_hash": `""`,
+		}); err != nil {
+			s.log.Warn("could not persist password removal", "error", err)
+		}
+	}
+
+	jsonOK(w, map[string]string{"status": "password removed"})
+}
+
 // GET /encoders — returns all available encoders with active flag
 func (s *Server) handleGetEncoders(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
