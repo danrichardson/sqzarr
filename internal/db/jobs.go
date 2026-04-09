@@ -332,6 +332,40 @@ func (db *DB) SourcePathExists(path string) (bool, error) {
 	return true, nil
 }
 
+// SavingsEntry holds per-file savings data for the breakdown view.
+type SavingsEntry struct {
+	ID         int64        `json:"id"`
+	SourcePath string       `json:"source_path"`
+	SourceSize int64        `json:"source_size"`
+	OutputSize int64        `json:"output_size"`
+	BytesSaved int64        `json:"bytes_saved"`
+	FinishedAt sql.NullTime `json:"finished_at"`
+}
+
+// ListSavingsBreakdown returns per-file savings for jobs that saved space.
+func (db *DB) ListSavingsBreakdown() ([]*SavingsEntry, error) {
+	rows, err := db.conn.Query(`
+		SELECT id, source_path, source_size,
+		       COALESCE(output_size, 0), COALESCE(bytes_saved, 0), finished_at
+		FROM jobs
+		WHERE status IN ('done','staged') AND COALESCE(bytes_saved, 0) > 0
+		ORDER BY bytes_saved DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("list savings breakdown: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []*SavingsEntry
+	for rows.Next() {
+		e := &SavingsEntry{}
+		if err := rows.Scan(&e.ID, &e.SourcePath, &e.SourceSize, &e.OutputSize, &e.BytesSaved, &e.FinishedAt); err != nil {
+			return nil, fmt.Errorf("scan savings entry: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
 // ConsecutiveFailCount returns the number of consecutive failures in the most
 // recent jobs (across all files). Used for system-level auto-pause detection.
 func (db *DB) ConsecutiveFailCount() (int, error) {

@@ -7,6 +7,7 @@ import { Directories } from './pages/Directories'
 import { Review } from './pages/Review'
 import { Settings } from './pages/Settings'
 import { Login } from './pages/Login'
+import { SpaceSaved } from './pages/SpaceSaved'
 
 const router = createBrowserRouter([
   {
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
       { path: '/directories', element: <Directories /> },
       { path: '/review', element: <Review /> },
       { path: '/settings', element: <Settings /> },
+      { path: '/savings', element: <SpaceSaved /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

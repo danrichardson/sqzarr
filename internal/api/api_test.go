@@ -124,6 +124,88 @@ func TestPathTraversalBlocked(t *testing.T) {
 	}
 }
 
+func TestSavingsBreakdownMatchesTotal(t *testing.T) {
+	srv, database := newTestServer(t)
+
+	// Create some completed jobs with savings
+	jobs := []struct {
+		path       string
+		sourceSize int64
+		outputSize int64
+		bytesSaved int64
+	}{
+		{"/media/movie1.mkv", 1000000, 600000, 400000},
+		{"/media/movie2.mkv", 2000000, 1200000, 800000},
+		{"/media/movie3.mkv", 500000, 450000, 50000},
+	}
+
+	for _, j := range jobs {
+		id, err := database.InsertJob(&db.Job{
+			SourcePath:    j.path,
+			SourceSize:    j.sourceSize,
+			SourceCodec:   "h264",
+			SourceBitrate: 8_000_000,
+			Status:        db.JobPending,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := database.CompleteJob(id, j.path+".out", j.outputSize, "sw", j.bytesSaved); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Get total from /status
+	req := httptest.NewRequest("GET", "/api/v1/status", nil)
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /status: expected 200, got %d", w.Code)
+	}
+	var statusResp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &statusResp); err != nil {
+		t.Fatal(err)
+	}
+	totalGB := statusResp["total_saved_gb"].(float64)
+	totalFromStatus := int64(totalGB * 1024 * 1024 * 1024)
+
+	// Get breakdown from /jobs/savings
+	req2 := httptest.NewRequest("GET", "/api/v1/jobs/savings", nil)
+	w2 := httptest.NewRecorder()
+	srv.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("GET /jobs/savings: expected 200, got %d: %s", w2.Code, w2.Body.String())
+	}
+	var entries []struct {
+		BytesSaved int64 `json:"bytes_saved"`
+	}
+	if err := json.Unmarshal(w2.Body.Bytes(), &entries); err != nil {
+		t.Fatal(err)
+	}
+
+	var sumFromBreakdown int64
+	for _, e := range entries {
+		sumFromBreakdown += e.BytesSaved
+	}
+
+	// The total from /status is converted through float64 GB, so allow small rounding delta
+	expectedTotal := int64(400000 + 800000 + 50000)
+	if sumFromBreakdown != expectedTotal {
+		t.Errorf("breakdown sum = %d, expected %d", sumFromBreakdown, expectedTotal)
+	}
+	// Verify /status total is consistent (within float64 rounding of GB conversion)
+	if abs64(totalFromStatus-expectedTotal) > 1 {
+		t.Errorf("status total_saved_gb converted = %d, expected ~%d", totalFromStatus, expectedTotal)
+	}
+}
+
+func abs64(n int64) int64 {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
 func TestAuthRequired(t *testing.T) {
 	database := testutil.NewTestDB(t)
 	cfg := config.Defaults()

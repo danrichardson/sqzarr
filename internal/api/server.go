@@ -110,6 +110,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	api.HandleFunc("POST /jobs", s.handleCreateJob)
 	api.HandleFunc("POST /jobs/clear", s.handleClearHistory)
 	api.HandleFunc("POST /jobs/enqueue-dir", s.handleEnqueueDir)
+	api.HandleFunc("GET /jobs/savings", s.handleListSavings)
 	api.HandleFunc("GET /jobs/{id}", s.handleGetJob)
 	api.HandleFunc("DELETE /jobs/{id}", s.handleCancelJob)
 	api.HandleFunc("POST /jobs/{id}/retry", s.handleRetryJob)

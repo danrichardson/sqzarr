@@ -89,6 +89,19 @@ func (s *Server) handleListJobs(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, jobs)
 }
 
+// GET /jobs/savings — per-file savings breakdown
+func (s *Server) handleListSavings(w http.ResponseWriter, r *http.Request) {
+	entries, err := s.db.ListSavingsBreakdown()
+	if err != nil {
+		jsonError(w, "database error", http.StatusInternalServerError)
+		return
+	}
+	if entries == nil {
+		entries = []*db.SavingsEntry{}
+	}
+	jsonOK(w, entries)
+}
+
 // POST /jobs — manually enqueue a file
 func (s *Server) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	var req struct {

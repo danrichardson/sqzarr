@@ -150,6 +150,15 @@ export interface FSBrowseResult {
   files: FileEntry[]
 }
 
+export interface SavingsEntry {
+  id: number
+  source_path: string
+  source_size: number
+  output_size: number
+  bytes_saved: number
+  finished_at: { Time: string; Valid: boolean } | null
+}
+
 // ---- API calls ----
 
 export const api = {
@@ -163,6 +172,7 @@ export const api = {
       offset: String(offset),
     })}`),
   getJob: (id: number) => request<Job>('GET', `/jobs/${id}`),
+  listSavings: () => request<SavingsEntry[]>('GET', '/jobs/savings'),
   createJob: (path: string) => request<Job>('POST', '/jobs', { path }),
   enqueueDir: (path: string) => request<{ queued: number; skipped: number }>('POST', '/jobs/enqueue-dir', { path }),
   cancelJob: (id: number) => request<void>('DELETE', `/jobs/${id}`),

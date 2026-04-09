@@ -5,6 +5,7 @@ import { Card, CardTitle } from '../components/Card'
 import { ProgressBar } from '../components/ProgressBar'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatBytes, formatDuration, basename } from '../lib/utils'
+import { Link } from 'react-router-dom'
 import { Play, Pause, RefreshCw, HardDrive, Cpu, Zap, AlertTriangle, X } from 'lucide-react'
 
 function relativeTime(iso: string | null | undefined): string {
@@ -175,12 +176,14 @@ export function Dashboard() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardTitle>Space Saved</CardTitle>
-          <p className="text-2xl font-semibold text-stone-900">
-            {status ? formatBytes(status.total_saved_gb * 1024 * 1024 * 1024) : '—'}
-          </p>
-        </Card>
+        <Link to="/savings">
+          <Card className="cursor-pointer hover:border-amber-300 transition-colors">
+            <CardTitle>Space Saved</CardTitle>
+            <p className="text-2xl font-semibold text-stone-900">
+              {status ? formatBytes(status.total_saved_gb * 1024 * 1024 * 1024) : '—'}
+            </p>
+          </Card>
+        </Link>
         <Card>
           <CardTitle>Jobs Done</CardTitle>
           <p className="text-2xl font-semibold text-stone-900">{status?.jobs_done ?? '—'}</p>
