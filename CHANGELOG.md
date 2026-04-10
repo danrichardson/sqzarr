@@ -37,3 +37,4 @@
 - JWT authentication (optional)
 - systemd and launchd service support
 - CI/CD workflows, cross-platform release builds
+
