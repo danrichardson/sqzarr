@@ -5,6 +5,8 @@ Self-hosted GPU-accelerated media transcoder. Scans your library, finds files th
 **Target hardware:** Intel Quick Sync (VAAPI), Apple VideoToolbox, NVIDIA NVENC, or CPU fallback.
 
 ---
+<img width="1283" height="396" alt="image" src="https://github.com/user-attachments/assets/38585c7f-c1b9-40a8-a2f6-1f501773b374" />
+---
 
 ## What it does
 
