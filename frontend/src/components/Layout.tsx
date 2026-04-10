@@ -12,16 +12,22 @@ import {
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { api } from '../lib/api'
+import { LayoutProvider, useLayoutContext } from '../context/LayoutContext'
 
 export function Layout() {
-  const [originalsCount, setOriginalsCount] = useState(0)
+  return (
+    <LayoutProvider>
+      <LayoutInner />
+    </LayoutProvider>
+  )
+}
+
+function LayoutInner() {
+  const { originalsCount } = useLayoutContext()
   const [paused, setPaused] = useState(false)
   const [resuming, setResuming] = useState(false)
 
   useEffect(() => {
-    api.listOriginals()
-      .then(r => setOriginalsCount(r?.length ?? 0))
-      .catch(() => {})
     api.getStatus()
       .then(s => setPaused(s.paused))
       .catch(() => {})

@@ -3,6 +3,7 @@ import { api, type OriginalRecord } from '../lib/api'
 import { Card } from '../components/Card'
 import { formatBytes, basename } from '../lib/utils'
 import { Trash2, RotateCcw, BanIcon, Check } from 'lucide-react'
+import { useLayoutContext } from '../context/LayoutContext'
 
 function daysLabel(days: number): string {
   if (days === 0) return 'expires today'
@@ -19,6 +20,7 @@ function savings(rec: OriginalRecord): string | null {
 }
 
 export function Review() {
+  const { refreshOriginals } = useLayoutContext()
   const [records, setRecords] = useState<OriginalRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -56,6 +58,7 @@ export function Review() {
     try {
       await api.deleteOriginal(id)
       await load()
+      refreshOriginals()
       setSelected(s => { const n = new Set(s); n.delete(id); return n })
     } catch (err: any) {
       setActionError(err.message || 'Delete failed')
@@ -66,6 +69,7 @@ export function Review() {
     try {
       await api.restoreOriginal(id, exclude)
       await load()
+      refreshOriginals()
       setSelected(s => { const n = new Set(s); n.delete(id); return n })
     } catch (err: any) {
       setActionError(err.message || 'Restore failed')
@@ -80,6 +84,7 @@ export function Review() {
     }
     setSelected(new Set())
     await load()
+    refreshOriginals()
   }
 
   if (loading) return <div className="p-6 text-stone-400 text-sm">Loading…</div>
