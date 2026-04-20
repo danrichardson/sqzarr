@@ -1,8 +1,7 @@
 # Ticket Workflow Config
 
 - Stack: Go + Vite/React
-- Tickets directory: tickets/
-- ID prefix: TKT-
+- Backend: plane (see `.claude/plane-config.md` for project UUIDs)
 - Main branch: main
 
 ## Commands
