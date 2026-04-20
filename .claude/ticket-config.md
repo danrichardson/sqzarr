@@ -3,6 +3,7 @@
 - Stack: Go + Vite/React
 - Tickets directory: tickets/
 - ID prefix: TKT-
+- Main branch: main
 
 ## Commands
 - Test: make test-integration

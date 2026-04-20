@@ -47,6 +47,10 @@ updated: YYYY-MM-DD
 <!-- Agent fills this after implementation -->
 
 
+## Automated Checks
+<!-- Agent fills this during /ticket-review or /ticket-chain -->
+
+
 ## Verification Checklist (for human)
 <!-- Agent fills this during /ticket-review -->
 - [ ] 
