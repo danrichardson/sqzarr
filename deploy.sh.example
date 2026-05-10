@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Copy this file to deploy.local.sh and set values for your environment.
+# Then run: ./deploy.local.sh
+
+DEPLOY_HOST="192.168.29.211"
+DEPLOY_USER="root"
+REMOTE_SRC_DIR="/opt/sqzarr-src"
+REMOTE_BIN_PATH="/usr/local/bin/sqzarr"
+SERVICE_NAME="sqzarr"
+
+export DEPLOY_HOST DEPLOY_USER REMOTE_SRC_DIR REMOTE_BIN_PATH SERVICE_NAME
+
+"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/deploy.sh"

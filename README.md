@@ -235,6 +235,29 @@ go mod tidy
 go build -trimpath -ldflags='-s -w' -o /usr/local/bin/sqzarr ./cmd/sqzarr/
 ```
 
+### Shell helper scripts
+
+Root helper scripts are Linux shell scripts.
+
+```bash
+# Build Linux binary to dist/sqzarr-linux-amd64
+./build_linux.sh
+
+# Deploy (requires DEPLOY_HOST and SSH access)
+DEPLOY_HOST=192.168.29.211 ./deploy.sh
+
+# Convenience wrapper around deploy.sh
+DEPLOY_HOST=192.168.29.211 ./build_now.sh
+```
+
+For machine-local deploy defaults, copy the example and edit values:
+
+```bash
+cp deploy.sh.example deploy.local.sh
+chmod +x deploy.local.sh
+./deploy.local.sh
+```
+
 ---
 
 ## Admin panel
